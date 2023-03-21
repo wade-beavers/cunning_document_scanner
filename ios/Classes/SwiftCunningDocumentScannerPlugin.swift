@@ -63,7 +63,7 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, MyDocum
 }
 
 
-class MyDocumentCameraViewController: VNDocumentCameraViewController {
+public class MyDocumentCameraViewController: VNDocumentCameraViewController {
     override func viewDidLoad() {
     super.viewDidLoad()
     navigationItem.title = "Place the photo in view"
