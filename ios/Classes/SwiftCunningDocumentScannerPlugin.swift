@@ -71,36 +71,77 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, AVCaptu
         captureSession?.stopRunning()
         previewLayer?.removeFromSuperlayer()
     }
-    
+
 public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
     guard let imageData = photo.fileDataRepresentation(), let image = UIImage(data: imageData) else {
         resultChannel?(nil)
         return
     }
 
-    let tempDirPath = self.getDocumentsDirectory()
-    let currentDateTime = Date()
-    let df = DateFormatter()
-    df.dateFormat = "yyyyMMdd-HHmmss"
-    let formattedDate = df.string(from: currentDateTime)
+    let ciImage = CIImage(image: image)!
+    let detectRectanglesRequest = VNDetectRectanglesRequest { (request, error) in
+        guard let observations = request.results as? [VNRectangleObservation], let detectedRectangle = observations.first else {
+            return
+        }
 
-    let url = tempDirPath.appendingPathComponent(formattedDate + "-0.png")
-    try? image.pngData()?.write(to: url)
+        let croppedImage = self.cropImage(ciImage, using: detectedRectangle)
 
-    resultChannel?([url.path])
+        let tempDirPath = self.getDocumentsDirectory()
+        let currentDateTime = Date()
+        let df = DateFormatter()
+        df.dateFormat = "yyyyMMdd-HHmmss"
+        let formattedDate = df.string(from: currentDateTime)
 
-    if let presentedVC = UIApplication.shared.keyWindow?.rootViewController {
-        stopCaptureSession()
-        previewLayer = nil
-        captureSession = nil
-        photoOutput = nil
-        presentedVC.view.subviews.forEach { view in
-            if view is OverlayView || view is UIButton {
-                view.removeFromSuperview()
+        let url = tempDirPath.appendingPathComponent(formattedDate + "-0.png")
+        try? croppedImage.pngData()?.write(to: url)
+
+        self.resultChannel?([url.path])
+
+        if let presentedVC = UIApplication.shared.keyWindow?.rootViewController {
+            self.stopCaptureSession()
+            self.previewLayer = nil
+            self.captureSession = nil
+            self.photoOutput = nil
+            presentedVC.view.subviews.forEach { view in
+                if view is OverlayView || view is UIButton {
+                    view.removeFromSuperview()
+                }
             }
         }
     }
+
+    do {
+        let imageRequestHandler = VNImageRequestHandler(cgImage: ciImage.cgImage!, options: [:])
+        try imageRequestHandler.perform([detectRectanglesRequest])
+    } catch {
+        print("Failed to perform rectangle detection: \(error.localizedDescription)")
+    }
 }
+
+func cropImage(_ ciImage: CIImage, using observation: VNRectangleObservation) -> UIImage {
+    let imageSize = ciImage.extent.size
+    var points: [CGPoint] = [
+        observation.topLeft,
+        observation.topRight,
+        observation.bottomRight,
+        observation.bottomLeft
+    ].map {
+        CGPoint(x: $0.x * imageSize.width, y: (1 - $0.y) * imageSize.height)
+    }
+
+    let perspectiveCorrectionFilter = CIFilter(name: "CIPerspectiveCorrection")!
+    perspectiveCorrectionFilter.setValue(CIVector(cgPoint: points[0]), forKey: "inputTopLeft")
+    perspectiveCorrectionFilter.setValue(CIVector(cgPoint: points[1]), forKey: "inputTopRight")
+    perspectiveCorrectionFilter.setValue(CIVector(cgPoint: points[2]), forKey: "inputBottomRight")
+    perspectiveCorrectionFilter.setValue(CIVector(cgPoint: points[3]), forKey: "inputBottomLeft")
+    perspectiveCorrectionFilter.setValue(ciImage, forKey: kCIInputImageKey)
+
+    let outputImage = perspectiveCorrectionFilter.outputImage!
+    let context = CIContext(options: nil)
+    let cgImage = context.createCGImage(outputImage, from: outputImage.extent)!
+    return UIImage(cgImage: cgImage)
+}
+
 
     func addCaptureButton(in viewController: UIViewController) {
         let captureButton = UIButton(type: .system)
