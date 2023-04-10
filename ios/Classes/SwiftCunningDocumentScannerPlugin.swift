@@ -99,6 +99,7 @@ public func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto
 
         if let presentedVC = UIApplication.shared.keyWindow?.rootViewController {
             self.stopCaptureSession()
+            self.removeCaptureButton(from: presentedVC) 
             self.previewLayer = nil
             self.captureSession = nil
             self.photoOutput = nil
@@ -142,19 +143,52 @@ func cropImage(_ ciImage: CIImage, using observation: VNRectangleObservation) ->
     return UIImage(cgImage: cgImage)
 }
 
+func addCaptureButton(in viewController: UIViewController) {
+    let outerCircleView = UIView()
+    outerCircleView.backgroundColor = UIColor.white
+    outerCircleView.layer.cornerRadius = 35
+    outerCircleView.translatesAutoresizingMaskIntoConstraints = false
+    
+    let innerCircleView = UIView()
+    innerCircleView.backgroundColor = UIColor.systemGray2
+    innerCircleView.layer.cornerRadius = 30
+    innerCircleView.translatesAutoresizingMaskIntoConstraints = false
+    
+    let captureButton = UIButton(type: .custom)
+    captureButton.translatesAutoresizingMaskIntoConstraints = false
+    captureButton.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
+    
+    viewController.view.addSubview(outerCircleView)
+    viewController.view.addSubview(innerCircleView)
+    viewController.view.addSubview(captureButton)
+    
+    NSLayoutConstraint.activate([
+        outerCircleView.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
+        outerCircleView.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+        outerCircleView.widthAnchor.constraint(equalToConstant: 70),
+        outerCircleView.heightAnchor.constraint(equalToConstant: 70),
+        
+        innerCircleView.centerXAnchor.constraint(equalTo: outerCircleView.centerXAnchor),
+        innerCircleView.centerYAnchor.constraint(equalTo: outerCircleView.centerYAnchor),
+        innerCircleView.widthAnchor.constraint(equalToConstant: 60),
+        innerCircleView.heightAnchor.constraint(equalToConstant: 60),
+        
+        captureButton.centerXAnchor.constraint(equalTo: outerCircleView.centerXAnchor),
+        captureButton.centerYAnchor.constraint(equalTo: outerCircleView.centerYAnchor),
+        captureButton.widthAnchor.constraint(equalToConstant: 70),
+        captureButton.heightAnchor.constraint(equalToConstant: 70)
+    ])
+}
 
-    func addCaptureButton(in viewController: UIViewController) {
-        let captureButton = UIButton(type: .system)
-        captureButton.setTitle("Capture", for: .normal)
-        captureButton.addTarget(self, action: #selector(capturePhoto), for: .touchUpInside)
-        captureButton.translatesAutoresizingMaskIntoConstraints = false
-        viewController.view.addSubview(captureButton)
-
-        NSLayoutConstraint.activate([
-            captureButton.centerXAnchor.constraint(equalTo: viewController.view.centerXAnchor),
-            captureButton.bottomAnchor.constraint(equalTo: viewController.view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
-        ])
+func removeCaptureButton(from viewController: UIViewController) {
+    viewController.view.subviews.forEach { view in
+        if view is UIButton || view is UIView {
+            view.removeFromSuperview()
+        }
     }
+}
+
+
 
     @objc func capturePhoto() {
         guard let photoOutput = self.photoOutput else { return }
