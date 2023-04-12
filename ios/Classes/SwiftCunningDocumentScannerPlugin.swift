@@ -2,7 +2,22 @@ import Flutter
 import UIKit
 import WeScan
 
-public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, ImageScannerControllerDelegate {
+extension UIColor {
+    convenience init(hex: String) {
+        let scanner = Scanner(string: hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted))
+        var hexNumber: UInt64 = 0
+        if scanner.scanHexInt64(&hexNumber) {
+            let r = CGFloat((hexNumber & 0xff0000) >> 16) / 255
+            let g = CGFloat((hexNumber & 0x00ff00) >> 8) / 255
+            let b = CGFloat(hexNumber & 0x0000ff) / 255
+            self.init(red: r, green: g, blue: b, alpha: 1.0)
+        } else {
+            self.init(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
+        }
+    }
+}
+
+public class SwiftCunningDocumentScannerPlugin: UIViewController, FlutterPlugin,  ImageScannerControllerDelegate {
     var resultChannel: FlutterResult?
     var presentingController: ImageScannerController?
 
@@ -18,6 +33,7 @@ public class SwiftCunningDocumentScannerPlugin: NSObject, FlutterPlugin, ImageSc
             self.resultChannel = result
             self.presentingController = ImageScannerController()
             self.presentingController?.imageScannerDelegate = self
+            self.presentingController?.view.backgroundColor = UIColor(hex: "#D2CBC3")
             presentedVC?.present(self.presentingController!, animated: true)
         } else {
             result(FlutterMethodNotImplemented)
